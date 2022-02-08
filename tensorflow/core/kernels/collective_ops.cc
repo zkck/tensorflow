@@ -475,6 +475,61 @@ REGISTER_KERNEL_BUILDER(Name("CollectiveBcastRecv").Device(DEVICE_CPU),
 REGISTER_KERNEL_BUILDER(Name("CollectiveBcastRecv").Device(DEVICE_DEFAULT),
                         CollectiveBcastRecvOpKernel);
 
+class CollectiveAssignGroupV2OpKernel : public OpKernel {
+ public:
+  explicit CollectiveAssignGroupV2OpKernel(OpKernelConstruction* c)
+      : OpKernel(c) {}
+
+  void Compute(OpKernelContext* context) override {
+    const Tensor& group_assignment = context->input(0);
+    const Tensor& rank = context->input(1);
+
+    OP_REQUIRES(context, TensorShapeUtils::IsScalar(rank.shape()),
+                errors::InvalidArgument(
+                    "rank must be a scalar, but received tensor of shape: ",
+                    rank.shape().DebugString()));
+
+    OP_REQUIRES(
+        context, TensorShapeUtils::IsMatrix(group_assignment.shape()),
+        errors::InvalidArgument("group assignment must be a 2-d Tensor, but "
+                                "received tensor of shape: ",
+                                group_assignment.shape().DebugString()));
+
+    Tensor* output = nullptr;
+    AllocatorAttributes attr;
+    attr.set_on_host(true);
+    OP_REQUIRES_OK(context,
+                   context->allocate_output(0, TensorShape({}), &output, attr));
+    OP_REQUIRES_OK(context, ComputeGroupKey(group_assignment, rank, output));
+  }
+
+ private:
+  static Status ComputeGroupKey(const Tensor& group_assignment,
+                                const Tensor& rank, Tensor* output) {
+    for (int group_id = 0; group_id < group_assignment.dim_size(0);
+         group_id++) {
+      for (int color = 0; color < group_assignment.dim_size(1); color++) {
+        if (group_assignment.matrix<int32>()(group_id, color) ==
+            rank.scalar<int32_t>()()) {
+          // Ensure we don't create 0 group keys (special).
+          output->flat<int32_t>()(0) = 0x7F000000 + group_id;
+          return Status::OK();
+        }
+      }
+    }
+    return errors::InvalidArgument("FIXME: Not found");
+  }
+};
+
+REGISTER_KERNEL_BUILDER(Name("CollectiveAssignGroupV2").Device(DEVICE_CPU),
+                        CollectiveAssignGroupV2OpKernel);
+REGISTER_KERNEL_BUILDER(Name("CollectiveAssignGroupV2")
+                            .Device(DEVICE_DEFAULT)
+                            .HostMemory("device_index")
+                            .HostMemory("group_assignment")
+                            .HostMemory("group_key"),
+                        CollectiveAssignGroupV2OpKernel);
+
 class CollectiveOpV2Kernel : public AsyncOpKernel {
  public:
   explicit CollectiveOpV2Kernel(OpKernelConstruction* c)
