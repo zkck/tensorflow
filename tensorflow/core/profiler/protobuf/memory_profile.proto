@@ -97,7 +97,7 @@ message ActiveAllocation {
 
 // Memory profile snapshots per memory allocator.
 message PerAllocatorMemoryProfile {
-  // A list of MemoryProfileSnapshots sorted by time_offset_ps.
+  // A list of MemoryProfileSnapshots referenced by <active_allocations>.
   repeated MemoryProfileSnapshot memory_profile_snapshots = 1;
   // The summary of memory profile (e.g. the peak memory usage).
   MemoryProfileSummary profile_summary = 2;
@@ -108,6 +108,9 @@ message PerAllocatorMemoryProfile {
   // that are not captured in the MemoryActivityMetadata of
   // memory_profile_snapshots. Need to handle separately.
   repeated MemoryActivityMetadata special_allocations = 4;
+  // A list of MemoryProfileSnapshots used to display the memory timeline graph
+  // in the frontend. The snapshots are sorted by timestamp.
+  repeated MemoryProfileSnapshot memory_profile_timeline_snapshots = 5;
 }
 
 // Data for memory usage analysis in one host.
