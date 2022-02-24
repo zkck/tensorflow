@@ -1123,6 +1123,7 @@ cc_library(
         "transforms/annotate_parameter_replication.cc",
         "transforms/batchmatmul_to_einsum.cc",
         "transforms/bridge.cc",
+        "transforms/canonicalize_compile_and_replicate_attributes.cc",
         "transforms/cluster_formation.cc",
         "transforms/cluster_ops_by_policy.cc",
         "transforms/cluster_outlining.cc",
