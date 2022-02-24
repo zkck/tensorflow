@@ -662,26 +662,35 @@ void ReduceAllDims(const T* input_data, const int* input_dims,
   // Fetch backend context and number of threads.
   CpuBackendContext* cpu_backend_context =
       CpuBackendContext::GetFromContext(context);
-  const int thread_count = cpu_backend_context->max_num_threads();
+  int thread_count = cpu_backend_context->max_num_threads();
+  const int kMinElementsPerThread = 1024;
+  if (num_elems / thread_count < kMinElementsPerThread) thread_count = 1;
 
-  std::vector<ReduceWorkerTask<T>> tasks;
-  std::vector<EvalData<T>> data;
-  tasks.reserve(thread_count);
-  data.reserve(thread_count);
-  int start = 0;
-  for (int i = 0; i < thread_count; ++i) {
-    data.push_back(eval_data);
-    int end = start + (num_elems - start) / (thread_count - i);
-    tasks.emplace_back(ReduceWorkerTask<T>(&data.back(), start, end));
-    start = end;
-  }
-  // Run all tasks on the thread pool.
-  cpu_backend_threadpool::Execute(tasks.size(), tasks.data(),
-                                  cpu_backend_context);
-  // Reduce all data from different workers.
-  output_data[0] = data[0].output;
-  for (int i = 1; i < data.size(); ++i) {
-    output_data[0] = reducer(output_data[0], data[i].output);
+  if (thread_count == 1) {
+    output_data[0] = num_elems > 0 ? input_data[0] : init_value;
+    for (int i = 1; i < num_elems; ++i) {
+      output_data[0] = reducer(output_data[0], input_data[i]);
+    }
+  } else {
+    std::vector<ReduceWorkerTask<T>> tasks;
+    std::vector<EvalData<T>> data;
+    tasks.reserve(thread_count);
+    data.reserve(thread_count);
+    int start = 0;
+    for (int i = 0; i < thread_count; ++i) {
+      data.push_back(eval_data);
+      int end = start + (num_elems - start) / (thread_count - i);
+      tasks.emplace_back(ReduceWorkerTask<T>(&data.back(), start, end));
+      start = end;
+    }
+    // Run all tasks on the thread pool.
+    cpu_backend_threadpool::Execute(tasks.size(), tasks.data(),
+                                    cpu_backend_context);
+    // Reduce all data from different workers.
+    output_data[0] = data[0].output;
+    for (int i = 1; i < data.size(); ++i) {
+      output_data[0] = reducer(output_data[0], data[i].output);
+    }
   }
 }
 
