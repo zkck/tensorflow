@@ -101,6 +101,7 @@ tf_gen_op_libs(
     deps = [
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core/framework:full_type_util",
     ],
 )
 

@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/full_type.pb.h"
+#include "tensorflow/core/framework/full_type_inference_util.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/op_def_builder.h"
 #include "tensorflow/core/framework/shape_inference.h"
@@ -59,6 +60,8 @@ REGISTER_OP("TensorSliceDataset")
     .SetDoNotOptimize()  // TODO(b/123753214): See comment in dataset_ops.cc.
     .SetTypeConstructor(full_type::VariadicTensorContainer(TFT_DATASET,
                                                            "Toutput_types"))
+    .SetForwardTypeFn(full_type::MultiaryUnstack(TFT_DATASET,
+                                                 full_type::UnstackTensor))
     .SetShapeFn(shape_inference::ScalarShape);
 
 REGISTER_OP("SparseTensorSliceDataset")

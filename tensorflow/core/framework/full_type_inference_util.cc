@@ -164,6 +164,26 @@ ForwardTypeInferenceFn UnaryContainerAdd(FullTypeId t, int container_idx,
   };
 }
 
+ForwardTypeInferenceFn MultiaryUnstack(
+    FullTypeId t, std::function<FullTypeDef(const FullTypeDef&)> unstack) {
+  return [t,
+          unstack](const std::vector<std::reference_wrapper<const FullTypeDef>>&
+                       input_types) -> StatusOr<FullTypeDef> {
+    FullTypeDef ret_type;
+    ret_type.set_type_id(TFT_PRODUCT);
+    FullTypeDef* cont_t = ret_type.add_args();
+    cont_t->set_type_id(t);
+    FullTypeDef* el_t = cont_t->add_args();
+    el_t->set_type_id(TFT_PRODUCT);
+    for (int element_idx = 0; element_idx < input_types.size(); ++element_idx) {
+      *(el_t->add_args()) = unstack(input_types[element_idx].get());
+    }
+    return ret_type;
+  };
+}
+
+FullTypeDef UnstackTensor(const FullTypeDef& t) { return t; }
+
 }  // namespace full_type
 
 }  // namespace tensorflow
