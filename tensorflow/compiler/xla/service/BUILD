@@ -3509,6 +3509,7 @@ cc_library(
     hdrs = ["computation_placer.h"],
     deps = [
         ":global_device_id",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
@@ -3540,9 +3541,9 @@ cc_library(
         "//tensorflow/compiler/xla:status",
         "//tensorflow/compiler/xla:statusor",
         "//tensorflow/compiler/xla:xla_data_proto_cc",
-        "//tensorflow/core:framework_lite",
         "//tensorflow/core:lib_proto_parsing",
         "//tensorflow/stream_executor:stream_header",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
