@@ -241,9 +241,13 @@ def _call_for_each_replica(distribution, fn, args, kwargs):
           mtt_captured_control_deps = set()
           for t in threads:
             mtt_captured_control_deps.update(t.captured_control_deps)
-          with ops.name_scope(mtt_captured_name_scope),\
-              ops.control_dependencies(mtt_captured_control_deps), \
-              variable_scope.variable_scope(mtt_captured_var_scope):
+
+          with ops.name_scope(
+              mtt_captured_name_scope), ops.control_dependencies(
+                  mtt_captured_control_deps), variable_scope.variable_scope(
+                      mtt_captured_var_scope), _enter_graph(
+                          threads[0].merge_call_entry_graph,
+                          threads[0].merge_call_entered_in_eager):
             merge_result = threads[0].merge_fn(distribution, *merge_args,
                                                **merge_kwargs)
           for r, t in enumerate(threads):
@@ -438,6 +442,9 @@ class _MirroredReplicaContext(distribute_lib.ReplicaContext):
     t.captured_var_scope = variable_scope.get_variable_scope()
     t.captured_control_deps = t.graph._current_control_dependencies()  # pylint: disable=protected-access
 
+    t.merge_call_entry_graph = ops.get_default_graph()
+    t.merge_call_entered_in_eager = context.context().executing_eagerly()
+
     # It is problematic if `merge_call` is called under a different graph other
     # than the one that `_call_for_each_replica` is called under, there are
     # 3 cases this can happen:
@@ -488,6 +495,8 @@ class _MirroredReplicaContext(distribute_lib.ReplicaContext):
     t.should_run.clear()
     if t.coord.should_stop():
       raise _RequestedStop()
+    t.merge_call_entry_graph = None
+    t.merge_call_entered_in_eager = None
     return t.merge_result
 
   @property
