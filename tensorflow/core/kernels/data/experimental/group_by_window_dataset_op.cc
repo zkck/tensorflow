@@ -208,6 +208,8 @@ class GroupByWindowDatasetOp : public UnaryDatasetOpKernel {
       Status GetNextInternal(IteratorContext* ctx,
                              std::vector<Tensor>* out_tensors,
                              bool* end_of_sequence) override {
+        LOG(INFO) << "Calling GetNext in group_by_window with "
+                  << ctx->split_providers().size() << " split providers";
         mutex_lock l(mu_);
         do {
           if (current_group_iterator_) {
@@ -215,7 +217,7 @@ class GroupByWindowDatasetOp : public UnaryDatasetOpKernel {
             // next element.
             bool end_of_group;
             TF_RETURN_IF_ERROR(current_group_iterator_->GetNext(
-                ctx, out_tensors, &end_of_group));
+                MakeNestedIteratorContext(ctx), out_tensors, &end_of_group));
             if (!end_of_group) {
               // Produce the subelement as output.
               *end_of_sequence = false;
@@ -232,7 +234,8 @@ class GroupByWindowDatasetOp : public UnaryDatasetOpKernel {
           while (!end_of_input_) {
             std::vector<Tensor> next_input_element;
             TF_RETURN_IF_ERROR(
-                input_impl_->GetNext(ctx, &next_input_element, &end_of_input_));
+                input_impl_->GetNext(MakeNestedIteratorContext(ctx),
+                                     &next_input_element, &end_of_input_));
 
             if (!end_of_input_) {
               // Run the key function on the input element to identify its
@@ -514,7 +517,8 @@ class GroupByWindowDatasetOp : public UnaryDatasetOpKernel {
 
         // Create an iterator for the dataset that was returned by `f`.
         return returned_dataset->MakeIterator(
-            ctx, this, strings::StrCat(prefix(), "[", group_counter_++, "]"),
+            MakeNestedIteratorContext(ctx), this,
+            strings::StrCat(prefix(), "[", group_counter_++, "]"),
             &current_group_iterator_);
       }
 
