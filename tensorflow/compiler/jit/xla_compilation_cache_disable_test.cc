@@ -16,6 +16,7 @@ limitations under the License.
 #include "tensorflow/compiler/jit/flags.h"
 #include "tensorflow/compiler/jit/xla_compilation_cache.h"
 #include "tensorflow/compiler/tf2xla/shape_util.h"
+#include "tensorflow/compiler/tf2xla/xla_compiler.h"
 #include "tensorflow/compiler/xla/client/client_library.h"
 #include "tensorflow/core/platform/test.h"
 #include "tensorflow/core/platform/test_benchmark.h"
@@ -28,6 +29,12 @@ TEST(XlaCompilationCacheTest, TestDisabledXlaCompilation) {
   NameAttrList fn;
   fn.set_name("afunction");
 
+  std::vector<XlaCompiler::Argument> args(1);
+  args[0].kind = XlaCompiler::Argument::kParameter;
+  args[0].type = DT_INT32;
+  args[0].shape = TensorShape({2});
+  args[0].name = "arg0";
+
   DisableXlaCompilation();
 
   xla::LocalClient* client = xla::ClientLibrary::LocalClientOrDie();
@@ -39,7 +46,7 @@ TEST(XlaCompilationCacheTest, TestDisabledXlaCompilation) {
   auto cache = new XlaCompilationCache(client, device_type);
   core::ScopedUnref cache_ref(cache);
 
-  Status status = cache->Compile(XlaCompiler::Options{}, fn, {},
+  Status status = cache->Compile(XlaCompiler::Options{}, fn, args,
                                  XlaCompiler::CompileOptions{},
                                  XlaCompilationCache::CompileMode::kStrict,
                                  &compilation_result, &executable);
